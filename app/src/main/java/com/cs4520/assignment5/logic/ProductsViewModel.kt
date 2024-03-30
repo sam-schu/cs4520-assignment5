@@ -74,26 +74,30 @@ sealed interface DisplayProducts {
     data object ProductsNotLoaded : DisplayProducts
 
     /**
-     * Represents that no products could be obtained because the server gave an error.
-     */
-    data object ServerError : DisplayProducts
-
-    /**
-     * Represents that no products could be obtained because the server gave an empty response.
-     */
-    data object ServerNoProducts : DisplayProducts
-
-    /**
-     * Represents that no products could be obtained because the device was offline, and either no
-     * products had been stored in the local database or the database access failed.
-     */
-    data object OfflineNoProducts : DisplayProducts
-
-    /**
      * Represents that a list of products was obtained either from the server, or from the local
      * database if the device was offline. Holds this list of products.
      */
     data class ProductList(val products: List<CategorizedProduct>) : DisplayProducts
+
+    data class LoadUnsuccessful(val reason: Reason) : DisplayProducts {
+        sealed interface Reason {
+            /**
+             * Represents that no products could be obtained because the server gave an error.
+             */
+            data object ServerError : Reason
+
+            /**
+             * Represents that no products could be obtained because the server gave an empty response.
+             */
+            data object ServerNoProducts : Reason
+
+            /**
+             * Represents that no products could be obtained because the device was offline, and either no
+             * products had been stored in the local database or the database access failed.
+             */
+            data object OfflineNoProducts : Reason
+        }
+    }
 }
 
 /**
@@ -129,7 +133,9 @@ class ProductsViewModel(private val repo: ProductRepo = Repo()) : ViewModel() {
                 }
                 if (products.isEmpty()) {
                     withContext(Dispatchers.Main) {
-                        _displayProducts.value = DisplayProducts.ServerNoProducts
+                        _displayProducts.value = DisplayProducts.LoadUnsuccessful(
+                            DisplayProducts.LoadUnsuccessful.Reason.ServerNoProducts
+                        )
                     }
                 } else {
                     val categorizedProducts = products.map { it.toCategorizedProduct() }
@@ -140,14 +146,18 @@ class ProductsViewModel(private val repo: ProductRepo = Repo()) : ViewModel() {
                 }
             } catch (e: HttpException) {
                 withContext(Dispatchers.Main) {
-                    _displayProducts.value = DisplayProducts.ServerError
+                    _displayProducts.value = DisplayProducts.LoadUnsuccessful(
+                        DisplayProducts.LoadUnsuccessful.Reason.ServerError
+                    )
                 }
             } catch (e: UnknownHostException) {
                 // handle device offline
                 val products = repo.getStoredProducts()
                 if (products.isNullOrEmpty()) {
                     withContext(Dispatchers.Main) {
-                        _displayProducts.value = DisplayProducts.OfflineNoProducts
+                        _displayProducts.value = DisplayProducts.LoadUnsuccessful(
+                            DisplayProducts.LoadUnsuccessful.Reason.OfflineNoProducts
+                        )
                     }
                 } else {
                     val categorizedProducts = products.map { it.toCategorizedProduct() }
