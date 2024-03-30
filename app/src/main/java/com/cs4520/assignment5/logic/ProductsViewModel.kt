@@ -1,5 +1,7 @@
 package com.cs4520.assignment5.logic
 
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -67,6 +69,11 @@ private fun Product.toCategorizedProduct(): CategorizedProduct {
  */
 sealed interface DisplayProducts {
     /**
+     * Represents that the app has not finished attempting to load the products.
+     */
+    data object ProductsNotLoaded : DisplayProducts
+
+    /**
      * Represents that no products could be obtained because the server gave an error.
      */
     data object ServerError : DisplayProducts
@@ -94,13 +101,15 @@ sealed interface DisplayProducts {
  * to load and store these products.
  */
 class ProductsViewModel(private val repo: ProductRepo = Repo()) : ViewModel() {
-    private val _displayProducts = MutableLiveData<DisplayProducts>()
+    private val _displayProducts = mutableStateOf<DisplayProducts>(
+        DisplayProducts.ProductsNotLoaded
+    )
 
     /**
-     * Holds the list of products to be displayed, or information about why these products could not
-     * be obtained.
+     * Holds the list of products to be displayed, or information about why these products have not
+     * been or could not be obtained.
      */
-    val displayProducts: LiveData<DisplayProducts> = _displayProducts
+    val displayProducts: State<DisplayProducts> = _displayProducts
 
     /**
      * Loads product data into the displayProducts property.
