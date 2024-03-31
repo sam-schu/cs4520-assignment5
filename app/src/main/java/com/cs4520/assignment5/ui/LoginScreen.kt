@@ -17,10 +17,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.cs4520.assignment5.R
+import com.cs4520.assignment5.ui.NavigationItem
 
 @Composable
-fun LoginScreen() {
+fun LoginScreen(navController: NavController?) {
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
 
@@ -43,7 +45,7 @@ fun LoginScreen() {
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
         )
-        Button(onClick = {}) {
+        Button(onClick = { navController?.navigate(NavigationItem.ProductList.route) }) {
             Text(stringResource(R.string.login_button_text))
         }
     }
@@ -52,5 +54,5 @@ fun LoginScreen() {
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun LoginScreenPreview() {
-    LoginScreen()
+    LoginScreen(null)
 }

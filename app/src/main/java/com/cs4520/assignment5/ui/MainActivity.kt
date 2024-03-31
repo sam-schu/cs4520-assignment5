@@ -1,17 +1,26 @@
 package com.cs4520.assignment5.ui
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
-import com.cs4520.assignment5.R
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import androidx.navigation.compose.rememberNavController
 import com.cs4520.assignment5.model.ApiAdventuresDatabaseProvider
 
 /**
- * The application's single activity, which can host both the login and product list fragments.
+ * The application's single activity, which can host both the login and product list screens.
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ApiAdventuresDatabaseProvider.setContext(applicationContext)
-        setContentView(R.layout.main_activity)
+
+        setContent {
+            AppNavHost(
+                modifier = Modifier.fillMaxSize(),
+                navController = rememberNavController()
+            )
+        }
     }
 }
