@@ -16,8 +16,6 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -129,5 +127,5 @@ fun ProductListScreenPreview() {
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun ProductPreview() {
-    Product(CategorizedProduct.Equipment("name", "expiry date", 10.0))
+    Product(CategorizedProduct.Equipment("Product", "2024-01-01", 10.0))
 }
