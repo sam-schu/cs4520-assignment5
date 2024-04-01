@@ -2,8 +2,6 @@ package com.cs4520.assignment5.logic
 
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cs4520.assignment5.ApiService
@@ -100,6 +98,44 @@ sealed interface DisplayProducts {
     }
 }
 
+object ProductLoader {
+    suspend fun loadProductData(apiService: ApiService, repo: ProductRepo): DisplayProducts {
+        try {
+            val products = apiService.getAllProducts().distinct().filterNot {
+                it.type == null || it.name == null || it.price == null
+            }
+            if (products.isEmpty()) {
+                return DisplayProducts.LoadUnsuccessful(
+                    DisplayProducts.LoadUnsuccessful.Reason.ServerNoProducts
+                )
+            } else {
+                repo.addNewProducts(products)
+                repo.getStoredProducts()?.map { it.toCategorizedProduct() }?.let {
+                    return DisplayProducts.ProductList(it)
+                }
+                return DisplayProducts.LoadUnsuccessful(
+                    DisplayProducts.LoadUnsuccessful.Reason.ServerError
+                )
+            }
+        } catch (e: HttpException) {
+            return DisplayProducts.LoadUnsuccessful(
+                DisplayProducts.LoadUnsuccessful.Reason.ServerError
+            )
+        } catch (e: UnknownHostException) {
+            // handle device offline
+            val products = repo.getStoredProducts()
+            return if (products.isNullOrEmpty()) {
+                DisplayProducts.LoadUnsuccessful(
+                    DisplayProducts.LoadUnsuccessful.Reason.OfflineNoProducts
+                )
+            } else {
+                val categorizedProducts = products.map { it.toCategorizedProduct() }
+                DisplayProducts.ProductList(categorizedProducts)
+            }
+        }
+    }
+}
+
 /**
  * Manages the products to be displayed and interfaces with the server API and local Room database
  * to load and store these products.
@@ -115,6 +151,10 @@ class ProductsViewModel(private val repo: ProductRepo = Repo()) : ViewModel() {
      */
     val displayProducts: State<DisplayProducts> = _displayProducts
 
+    init {
+        loadProductData()
+    }
+
     /**
      * Loads product data into the displayProducts property.
      *
@@ -127,44 +167,9 @@ class ProductsViewModel(private val repo: ProductRepo = Repo()) : ViewModel() {
     fun loadProductData() {
         val api = RetrofitBuilder.getRetrofit().create(ApiService::class.java)
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val products = api.getAllProducts().distinct().filterNot {
-                    it.type == null || it.name == null || it.price == null
-                }
-                if (products.isEmpty()) {
-                    withContext(Dispatchers.Main) {
-                        _displayProducts.value = DisplayProducts.LoadUnsuccessful(
-                            DisplayProducts.LoadUnsuccessful.Reason.ServerNoProducts
-                        )
-                    }
-                } else {
-                    val categorizedProducts = products.map { it.toCategorizedProduct() }
-                    withContext(Dispatchers.Main) {
-                        _displayProducts.value = DisplayProducts.ProductList(categorizedProducts)
-                    }
-                    repo.replaceStoredProducts(products)
-                }
-            } catch (e: HttpException) {
-                withContext(Dispatchers.Main) {
-                    _displayProducts.value = DisplayProducts.LoadUnsuccessful(
-                        DisplayProducts.LoadUnsuccessful.Reason.ServerError
-                    )
-                }
-            } catch (e: UnknownHostException) {
-                // handle device offline
-                val products = repo.getStoredProducts()
-                if (products.isNullOrEmpty()) {
-                    withContext(Dispatchers.Main) {
-                        _displayProducts.value = DisplayProducts.LoadUnsuccessful(
-                            DisplayProducts.LoadUnsuccessful.Reason.OfflineNoProducts
-                        )
-                    }
-                } else {
-                    val categorizedProducts = products.map { it.toCategorizedProduct() }
-                    withContext(Dispatchers.Main) {
-                        _displayProducts.value = DisplayProducts.ProductList(categorizedProducts)
-                    }
-                }
+            val productData = ProductLoader.loadProductData(api, repo)
+            withContext(Dispatchers.Main) {
+                _displayProducts.value = productData
             }
         }
     }

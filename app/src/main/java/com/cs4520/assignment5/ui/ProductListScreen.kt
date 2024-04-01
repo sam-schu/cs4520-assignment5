@@ -120,8 +120,6 @@ fun Product(product: CategorizedProduct) {
 @Composable
 fun ProductListScreenPreview() {
     ProductListScreen()
-
-    viewModel<ProductsViewModel>().loadProductData()
 }
 
 @Preview(showBackground = true, showSystemUi = true)

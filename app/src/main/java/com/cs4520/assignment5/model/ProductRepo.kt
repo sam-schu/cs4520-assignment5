@@ -13,4 +13,9 @@ interface ProductRepo {
      * Gets all stored products. Returns null if the database object cannot be obtained.
      */
     fun getStoredProducts(): List<Product>?
+
+    /**
+     * Adds products that are not already in the database.
+     */
+    fun addNewProducts(products: List<Product>)
 }

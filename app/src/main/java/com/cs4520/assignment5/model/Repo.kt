@@ -12,6 +12,13 @@ class Repo : ProductRepo {
         return getDao()?.getAllProducts()
     }
 
+    override fun addNewProducts(products: List<Product>) {
+        getDao()?.let { dao ->
+            val existingProducts = dao.getAllProducts()
+            dao.addProducts(products.minus(existingProducts.toSet()))
+        }
+    }
+
     // Returns the DAO (data access object) for the Product table, or null if the database object
     // cannot be obtained
     private fun getDao(): ProductDao? =
