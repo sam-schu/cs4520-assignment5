@@ -2,8 +2,15 @@ package com.cs4520.assignment5.logic
 
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.cs4520.assignment5.ApiService
 import com.cs4520.assignment5.RetrofitBuilder
 import com.cs4520.assignment5.model.Product
@@ -14,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import java.net.UnknownHostException
+import java.util.concurrent.TimeUnit
 
 /**
  * Represents a single product in a particular category - either equipment or food.
@@ -151,8 +159,12 @@ class ProductsViewModel(private val repo: ProductRepo = Repo()) : ViewModel() {
      */
     val displayProducts: State<DisplayProducts> = _displayProducts
 
+    private var workRequestLiveData: LiveData<WorkInfo>? = null
+    private var workRequestLiveDataObserver: Observer<in WorkInfo>? = null
+
     init {
         loadProductData()
+        scheduleGetProductsWorker()
     }
 
     /**
@@ -165,12 +177,49 @@ class ProductsViewModel(private val repo: ProductRepo = Repo()) : ViewModel() {
      * accordingly.
      */
     fun loadProductData() {
-        val api = RetrofitBuilder.getRetrofit().create(ApiService::class.java)
+        val apiService = RetrofitBuilder.getRetrofit().create(ApiService::class.java)
         viewModelScope.launch(Dispatchers.IO) {
-            val productData = ProductLoader.loadProductData(api, repo)
+            val productData = ProductLoader.loadProductData(apiService, repo)
             withContext(Dispatchers.Main) {
                 _displayProducts.value = productData
             }
         }
+    }
+
+    private fun scheduleGetProductsWorker() {
+        val constraints = Constraints.Builder()
+            .setRequiresCharging(false)
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val workRequest = PeriodicWorkRequestBuilder<GetProductsWorker>(
+            1, TimeUnit.HOURS
+        )
+            .setConstraints(constraints)
+            .build()
+
+        val workManager: WorkManager? = WorkManagerProvider.getWorkManager()
+
+        workManager?.apply {
+            cancelAllWork()
+            enqueue(workRequest)
+            workRequestLiveData = getWorkInfoByIdLiveData(workRequest.id)
+            val observer = Observer<WorkInfo> { result ->
+                if (result.state == WorkInfo.State.SUCCEEDED) {
+                    repo.getStoredProducts()?.map { it.toCategorizedProduct() }?.let {
+                        _displayProducts.value = DisplayProducts.ProductList(it)
+                    }
+                }
+            }
+            workRequestLiveData?.observeForever(observer)
+            workRequestLiveDataObserver = observer
+        }
+    }
+
+    override fun onCleared() {
+        workRequestLiveDataObserver?.let {
+            workRequestLiveData?.removeObserver(it)
+        }
+        super.onCleared()
     }
 }
